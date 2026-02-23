@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { PlayerProvider } from './src/context/PlayerContext';
+import { SettingsProvider } from './src/context/SettingsContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import SplashScreen from './src/screens/SplashScreen';
 
@@ -80,10 +81,12 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
-          <PlayerProvider>
-            <StatusBar style="light" backgroundColor="transparent" translucent />
-            <AppContent />
-          </PlayerProvider>
+          <SettingsProvider>
+            <PlayerProvider>
+              <StatusBar style="light" backgroundColor="transparent" translucent />
+              <AppContent />
+            </PlayerProvider>
+          </SettingsProvider>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

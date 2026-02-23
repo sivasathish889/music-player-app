@@ -16,6 +16,7 @@ import PlaylistScreen from '../screens/PlaylistScreen';
 import SearchScreen from '../screens/SearchScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import MiniPlayer from '../components/MiniPlayer';
+import SettingsScreen from '../screens/SettingsScreen';
 import { usePlayer } from '../context/PlayerContext';
 
 const Stack = createNativeStackNavigator();
@@ -96,6 +97,11 @@ const AppStack = () => (
                 gestureEnabled: true,
                 gestureDirection: 'vertical',
             }}
+        />
+        <Stack.Screen
+            name="Settings"
+            component={SettingsScreen}
+            options={{ animation: 'slide_from_right' }}
         />
     </Stack.Navigator>
 );

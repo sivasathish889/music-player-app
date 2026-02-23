@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import * as ImagePicker from 'expo-image-picker';
 import {
     View,
     Text,
@@ -10,6 +11,11 @@ import {
     TextInput,
     Modal,
     RefreshControl,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    TouchableWithoutFeedback,
+    Keyboard,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,6 +39,8 @@ const ProfileScreen = ({ navigation }) => {
     const [editName, setEditName] = useState(user?.name || '');
     const [editBio, setEditBio] = useState(user?.bio || '');
     const [refreshing, setRefreshing] = useState(false);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const [savingProfile, setSavingProfile] = useState(false);
 
     useEffect(() => {
         fetchUserData();
@@ -61,19 +69,74 @@ const ProfileScreen = ({ navigation }) => {
         fetchUserData();
     }, [user._id]);
 
-    const handleUpdateProfile = async () => {
+    const handlePickAvatar = async () => {
         try {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission needed', 'Please allow access to your photo library.');
+                return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+            if (result.canceled) return;
+
+            setUploadingAvatar(true);
+            const asset = result.assets[0];
             const formData = new FormData();
-            formData.append('name', editName.trim());
-            formData.append('bio', editBio.trim());
+            formData.append('avatar', {
+                uri: asset.uri,
+                type: asset.mimeType || 'image/jpeg',
+                name: 'avatar.jpg',
+            });
             const res = await userAPI.updateProfile(formData);
+            if (res.success) {
+                await updateUser({ ...user, avatar: res.user.avatar });
+            } else {
+                Alert.alert('Upload failed', res.message || 'Could not update photo.');
+            }
+        } catch (e) {
+            Alert.alert('Error', e.message || 'Failed to upload photo.');
+        } finally {
+            setUploadingAvatar(false);
+        }
+    };
+
+    const handleUpdateProfile = async () => {
+        if (savingProfile) return;
+        const trimmedName = editName.trim();
+        if (!trimmedName) {
+            Alert.alert('Validation', 'Name cannot be empty.');
+            return;
+        }
+        setSavingProfile(true);
+        try {
+            // Use JSON for text-only edits (no file) — multipart can fail on some servers
+            const res = await userAPI.updateProfileJSON({
+                name: trimmedName,
+                bio: editBio.trim(),
+            });
             if (res.success) {
                 await updateUser({ ...user, name: res.user.name, bio: res.user.bio });
                 setEditModal(false);
+            } else {
+                Alert.alert('Update Failed', res.message || 'Could not update profile. Please try again.');
             }
         } catch (e) {
-            Alert.alert('Error', e.message || 'Failed to update profile.');
+            Alert.alert('Error', e.message || 'Failed to update profile. Check your connection.');
+        } finally {
+            setSavingProfile(false);
         }
+    };
+
+    const openEditModal = () => {
+        // Always refresh from current user state when opening
+        setEditName(user?.name || '');
+        setEditBio(user?.bio || '');
+        setEditModal(true);
     };
 
     const handleLogout = () => {
@@ -101,18 +164,18 @@ const ProfileScreen = ({ navigation }) => {
             >
                 {/* Header/Avatar */}
                 <LinearGradient colors={['#1A0A2E', '#0A0A1A']} style={[styles.profileHeader, { paddingTop: insets.top + SPACING.sm }]}>
-                    {/* Edit & Logout */}
+                    {/* Edit & Settings */}
                     <View style={styles.headerActions}>
-                        <TouchableOpacity onPress={() => { setEditName(user?.name || ''); setEditBio(user?.bio || ''); setEditModal(true); }}>
+                        <TouchableOpacity onPress={openEditModal}>
                             <Ionicons name="create-outline" size={24} color={COLORS.white} />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={handleLogout}>
-                            <Ionicons name="log-out-outline" size={24} color={COLORS.error} />
+                        <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.settingsBtn}>
+                            <Ionicons name="settings-outline" size={24} color={COLORS.white} />
                         </TouchableOpacity>
                     </View>
 
-                    {/* Avatar */}
-                    <View style={styles.avatarContainer}>
+                    {/* Avatar — tappable for photo upload */}
+                    <TouchableOpacity style={styles.avatarContainer} onPress={handlePickAvatar} activeOpacity={0.85}>
                         {user?.avatar ? (
                             <Image source={{ uri: user.avatar }} style={styles.avatar} />
                         ) : (
@@ -120,8 +183,15 @@ const ProfileScreen = ({ navigation }) => {
                                 <Text style={styles.avatarText}>{user?.name?.[0]?.toUpperCase()}</Text>
                             </LinearGradient>
                         )}
+                        {/* Camera overlay */}
+                        <View style={styles.cameraOverlay}>
+                            {uploadingAvatar
+                                ? <ActivityIndicator size="small" color="#fff" />
+                                : <Ionicons name="camera" size={14} color="#fff" />
+                            }
+                        </View>
                         <View style={styles.onlineDot} />
-                    </View>
+                    </TouchableOpacity>
 
                     <Text style={styles.name}>{user?.name}</Text>
                     <Text style={styles.email}>{user?.email}</Text>
@@ -189,20 +259,27 @@ const ProfileScreen = ({ navigation }) => {
                             </View>
 
                             <View style={styles.section}>
-                                <Text style={styles.sectionTitle}>⚡ Settings</Text>
-                                {[
-                                    { icon: 'notifications-outline', label: 'Notifications', color: COLORS.warning },
-                                    { icon: 'download-outline', label: 'Downloads', color: COLORS.accent },
-                                    { icon: 'information-circle-outline', label: 'About', color: COLORS.primary },
-                                ].map((item, i) => (
-                                    <View key={i} style={styles.settingRow}>
-                                        <LinearGradient colors={[item.color + '33', item.color + '11']} style={styles.settingIcon}>
-                                            <Ionicons name={item.icon} size={18} color={item.color} />
-                                        </LinearGradient>
-                                        <Text style={styles.settingLabel}>{item.label}</Text>
-                                        <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-                                    </View>
-                                ))}
+                                <Text style={styles.sectionTitle}>⚡ Quick Actions</Text>
+                                <TouchableOpacity
+                                    style={styles.settingRow}
+                                    onPress={() => navigation.navigate('Settings')}
+                                >
+                                    <LinearGradient colors={[COLORS.primary + '33', COLORS.primary + '11']} style={styles.settingIcon}>
+                                        <Ionicons name="settings-outline" size={18} color={COLORS.primary} />
+                                    </LinearGradient>
+                                    <Text style={styles.settingLabel}>App Settings</Text>
+                                    <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.settingRow}
+                                    onPress={handleLogout}
+                                >
+                                    <LinearGradient colors={[COLORS.error + '33', COLORS.error + '11']} style={styles.settingIcon}>
+                                        <Ionicons name="log-out-outline" size={18} color={COLORS.error} />
+                                    </LinearGradient>
+                                    <Text style={[styles.settingLabel, { color: COLORS.error }]}>Logout</Text>
+                                    <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+                                </TouchableOpacity>
                             </View>
                         </>
                     )}
@@ -345,42 +422,63 @@ const ProfileScreen = ({ navigation }) => {
             </ScrollView>
 
             {/* Edit Profile Modal */}
-            <Modal visible={editModal} transparent animationType="slide">
-                <View style={styles.modalOverlay}>
-                    <LinearGradient colors={['#1E1E2E', '#252538']} style={styles.modal}>
-                        <Text style={styles.modalTitle}>Edit Profile</Text>
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Name</Text>
-                            <TextInput
-                                style={styles.modalInput}
-                                value={editName}
-                                onChangeText={setEditName}
-                                placeholderTextColor={COLORS.textMuted}
-                            />
+            <Modal visible={editModal} transparent animationType="slide" onRequestClose={() => setEditModal(false)}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                >
+                    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                        <View style={styles.modalOverlay}>
+                            <LinearGradient colors={['#1E1E2E', '#252538']} style={styles.modal}>
+                                {/* Header */}
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                                    <Text style={styles.modalTitle}>Edit Profile</Text>
+                                    <TouchableOpacity onPress={() => setEditModal(false)}>
+                                        <Ionicons name="close" size={22} color={COLORS.textMuted} />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.inputLabel}>Name</Text>
+                                    <TextInput
+                                        style={styles.modalInput}
+                                        value={editName}
+                                        onChangeText={setEditName}
+                                        placeholder="Your name"
+                                        placeholderTextColor={COLORS.textMuted}
+                                        returnKeyType="next"
+                                        autoCapitalize="words"
+                                    />
+                                </View>
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.inputLabel}>Bio</Text>
+                                    <TextInput
+                                        style={[styles.modalInput, { height: 80, textAlignVertical: 'top' }]}
+                                        value={editBio}
+                                        onChangeText={setEditBio}
+                                        placeholder="Tell us about yourself..."
+                                        placeholderTextColor={COLORS.textMuted}
+                                        multiline
+                                        returnKeyType="done"
+                                    />
+                                </View>
+                                <View style={styles.modalActions}>
+                                    <TouchableOpacity onPress={() => setEditModal(false)} style={styles.cancelBtn}>
+                                        <Text style={styles.cancelBtnText}>Cancel</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={handleUpdateProfile} disabled={savingProfile}>
+                                        <LinearGradient colors={GRADIENTS.primary} style={styles.saveBtn}>
+                                            {savingProfile
+                                                ? <ActivityIndicator size="small" color="#fff" />
+                                                : <Text style={styles.saveBtnText}>Save</Text>
+                                            }
+                                        </LinearGradient>
+                                    </TouchableOpacity>
+                                </View>
+                            </LinearGradient>
                         </View>
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>Bio</Text>
-                            <TextInput
-                                style={[styles.modalInput, { height: 80, textAlignVertical: 'top' }]}
-                                value={editBio}
-                                onChangeText={setEditBio}
-                                placeholder="Tell us about yourself..."
-                                placeholderTextColor={COLORS.textMuted}
-                                multiline
-                            />
-                        </View>
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity onPress={() => setEditModal(false)} style={styles.cancelBtn}>
-                                <Text style={styles.cancelBtnText}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={handleUpdateProfile}>
-                                <LinearGradient colors={GRADIENTS.primary} style={styles.saveBtn}>
-                                    <Text style={styles.saveBtnText}>Save</Text>
-                                </LinearGradient>
-                            </TouchableOpacity>
-                        </View>
-                    </LinearGradient>
-                </View>
+                    </TouchableWithoutFeedback>
+                </KeyboardAvoidingView>
             </Modal>
         </LinearGradient>
     );
@@ -390,11 +488,13 @@ const styles = StyleSheet.create({
     container: { flex: 1 },
     profileHeader: { padding: SPACING.xl, alignItems: 'center', paddingBottom: SPACING.xl },
     headerActions: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: SPACING.lg },
+    settingsBtn: { padding: 4 },
     avatarContainer: { position: 'relative', marginBottom: SPACING.base },
-    avatar: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: COLORS.primary },
-    avatarFallback: { width: 90, height: 90, borderRadius: 45, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: COLORS.primary },
+    avatar: { width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: COLORS.primary },
+    avatarFallback: { width: 96, height: 96, borderRadius: 48, justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: COLORS.primary },
     avatarText: { color: COLORS.white, fontSize: FONTS.sizes['3xl'], fontWeight: '800' },
-    onlineDot: { position: 'absolute', bottom: 4, right: 4, width: 14, height: 14, borderRadius: 7, backgroundColor: COLORS.success, borderWidth: 2, borderColor: COLORS.background },
+    cameraOverlay: { position: 'absolute', bottom: 16, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#0A0A0F' },
+    onlineDot: { position: 'absolute', top: 4, right: 4, width: 14, height: 14, borderRadius: 7, backgroundColor: COLORS.success, borderWidth: 2, borderColor: COLORS.background },
     name: { color: COLORS.white, fontSize: FONTS.sizes['2xl'], fontWeight: '800', marginBottom: 4 },
     email: { color: COLORS.textSecondary, fontSize: FONTS.sizes.sm, marginBottom: 8 },
     bio: { color: COLORS.textMuted, fontSize: FONTS.sizes.sm, textAlign: 'center', marginBottom: 8 },

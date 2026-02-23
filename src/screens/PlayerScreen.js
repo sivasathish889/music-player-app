@@ -18,7 +18,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlayer } from '../context/PlayerContext';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import { songAPI } from '../services/api';
+import { COLORS } from '../constants';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 const { width, height } = Dimensions.get('window');
@@ -177,12 +179,14 @@ const PlayerScreen = ({ navigation }) => {
     } = usePlayer();
 
     const { user } = useAuth();
+    const { isDownloaded, isDownloading, getProgress, startDownload } = useSettings();
     const insets = useSafeAreaInsets();
 
     const [isLiked, setIsLiked] = useState(false);
     const [sliderPos, setSliderPos] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const [menuVisible, setMenuVisible] = useState(false);
+    const [downloadMsg, setDownloadMsg] = useState('');
 
     const sliderWidth = width - 48;
     const fadeIn = useRef(new Animated.Value(0)).current;
@@ -206,6 +210,25 @@ const PlayerScreen = ({ navigation }) => {
             const res = await songAPI.toggleLike(currentSong._id);
             setIsLiked(res.liked);
         } catch (e) { }
+    };
+
+    const handleDownload = async () => {
+        if (!currentSong) return;
+        const songId = currentSong._id;
+        if (isDownloaded(songId)) {
+            setDownloadMsg('Already saved offline ✓');
+            setTimeout(() => setDownloadMsg(''), 2500);
+            return;
+        }
+        if (isDownloading(songId)) return;
+        setMenuVisible(false);
+        const result = await startDownload(currentSong);
+        if (result?.success) {
+            setDownloadMsg('Downloaded!');
+        } else {
+            setDownloadMsg('Download failed — try again');
+        }
+        setTimeout(() => setDownloadMsg(''), 3000);
     };
 
     const panResponder = PanResponder.create({
@@ -350,15 +373,40 @@ const PlayerScreen = ({ navigation }) => {
                     </TouchableOpacity>
                 </View>
 
-                {/* ── Repeat button ── */}
+                {/* ── Repeat / Shuffle / Download bottom bar ── */}
                 <View style={styles.bottomBar}>
                     <TouchableOpacity onPress={toggleRepeat} style={styles.bottomBtn}>
                         <Ionicons name="repeat" size={20} color={isRepeat ? '#fff' : 'rgba(255,255,255,0.35)'} />
                     </TouchableOpacity>
+
+                    {/* Download centre button */}
+                    <TouchableOpacity onPress={handleDownload} style={styles.downloadFab}>
+                        {isDownloading(currentSong._id) ? (
+                            <View style={{ alignItems: 'center' }}>
+                                <Ionicons name="arrow-down" size={18} color={COLORS.accent} />
+                                <Text style={styles.dlPct}>{Math.round(getProgress(currentSong._id) * 100)}%</Text>
+                            </View>
+                        ) : (
+                            <Ionicons
+                                name={isDownloaded(currentSong._id) ? 'cloud-done' : 'cloud-download-outline'}
+                                size={22}
+                                color={isDownloaded(currentSong._id) ? COLORS.accent : 'rgba(255,255,255,0.6)'}
+                            />
+                        )}
+                    </TouchableOpacity>
+
                     <TouchableOpacity onPress={toggleShuffle} style={styles.bottomBtn}>
                         <Ionicons name="shuffle" size={20} color={isShuffle ? '#fff' : 'rgba(255,255,255,0.35)'} />
                     </TouchableOpacity>
                 </View>
+
+                {/* Download toast */}
+                {downloadMsg !== '' && (
+                    <View style={styles.toast}>
+                        <Ionicons name="cloud-done" size={14} color={COLORS.accent} />
+                        <Text style={styles.toastText}>{downloadMsg}</Text>
+                    </View>
+                )}
 
                 <View style={{ height: insets.bottom + 16 }} />
             </Animated.View>
@@ -393,6 +441,23 @@ const PlayerScreen = ({ navigation }) => {
                                         <Ionicons name="share-outline" size={20} color="#fff" />
                                     </View>
                                     <Text style={styles.menuItemText}>Share Song</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity style={styles.menuItem} onPress={() => { handleDownload(); }}>
+                                    <View style={styles.menuItemIcon}>
+                                        <Ionicons
+                                            name={isDownloaded(currentSong._id) ? 'cloud-done' : 'cloud-download-outline'}
+                                            size={20}
+                                            color={isDownloaded(currentSong._id) ? COLORS.accent : '#fff'}
+                                        />
+                                    </View>
+                                    <Text style={[styles.menuItemText, isDownloaded(currentSong._id) && { color: COLORS.accent }]}>
+                                        {isDownloading(currentSong._id)
+                                            ? `Downloading... ${Math.round(getProgress(currentSong._id) * 100)}%`
+                                            : isDownloaded(currentSong._id)
+                                                ? 'Downloaded ✓'
+                                                : 'Download for Offline'}
+                                    </Text>
                                 </TouchableOpacity>
 
                                 <TouchableOpacity style={styles.menuItem} onPress={() => { setMenuVisible(false); toggleShuffle(); }}>
@@ -531,8 +596,34 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 40,
         alignItems: 'center',
+        marginBottom: 8,
     },
     bottomBtn: { padding: 10 },
+    downloadFab: {
+        width: 52,
+        height: 52,
+        borderRadius: 26,
+        backgroundColor: 'rgba(255,255,255,0.07)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    dlPct: { color: COLORS.accent, fontSize: 9, fontWeight: '700', marginTop: 1 },
+    toast: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        alignSelf: 'center',
+        backgroundColor: 'rgba(6,182,212,0.15)',
+        borderWidth: 1,
+        borderColor: 'rgba(6,182,212,0.35)',
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 7,
+        marginBottom: 6,
+    },
+    toastText: { color: COLORS.accent, fontSize: 13, fontWeight: '600' },
 
     // Menu Modal
     modalOverlay: {

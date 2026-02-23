@@ -71,6 +71,8 @@ export const userAPI = {
     updateProfile: (formData) => api.put('/users/profile', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
     }),
+    // Use this for text-only updates (no avatar) — avoids multipart issues
+    updateProfileJSON: (data) => api.put('/users/profile', data),
 };
 
 // Search API
