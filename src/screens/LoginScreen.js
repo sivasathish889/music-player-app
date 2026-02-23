@@ -61,7 +61,7 @@ const LoginScreen = ({ navigation }) => {
                                 <Text style={{ fontSize: 28 }}>🎵</Text>
                             </LinearGradient>
                         </View>
-                        <Text style={styles.appName}>Lumina</Text>
+                        <Text style={styles.appName}>Rhythm</Text>
                         <Text style={styles.appSub}>Music</Text>
                     </View>
 

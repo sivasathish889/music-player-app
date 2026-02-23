@@ -90,7 +90,7 @@ const RegisterScreen = ({ navigation }) => {
                                 <Text style={{ fontSize: 32 }}>🎵</Text>
                             </LinearGradient>
                         </View>
-                        <Text style={styles.appName}>Join Lumina Music</Text>
+                        <Text style={styles.appName}>Join Rhythm Music</Text>
                         <Text style={styles.subtitle}>Create your free account</Text>
                     </View>
 
