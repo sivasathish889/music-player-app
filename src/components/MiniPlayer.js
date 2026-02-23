@@ -16,7 +16,12 @@ const { width } = Dimensions.get('window');
 
 // ─── Mini Visualizer ──────────────────────────────────────────
 const MiniViz = ({ playing }) => {
-    const anims = Array.from({ length: 4 }, () => useRef(new Animated.Value(0.3)).current);
+    const anims = useRef([
+        new Animated.Value(0.3),
+        new Animated.Value(0.3),
+        new Animated.Value(0.3),
+        new Animated.Value(0.3),
+    ]).current;
     useEffect(() => {
         if (!playing) {
             anims.forEach(a => Animated.timing(a, { toValue: 0.3, duration: 300, useNativeDriver: false }).start());
@@ -56,7 +61,7 @@ const MiniPlayer = ({ onPress }) => {
     const progress = duration > 0 ? (position / duration) * (width - 32) : 0;
 
     return (
-        <Animated.View style={[styles.wrapper, { transform: [{ translateY }] }]}>
+        <Animated.View style={[styles.wrapper, { transform: [{ translateY: translateY }] }]}>
             {/* Progress line */}
             <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: progress }]} />

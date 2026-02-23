@@ -85,7 +85,13 @@ const MENTAL_STATES = [
 
 // ─── Mini Music Visualizer ─────────────────────────────────────
 const Visualizer = ({ color = '#fff', playing = false }) => {
-    const anims = Array.from({ length: 5 }, () => React.useRef(new Animated.Value(0.3)).current);
+    const anims = useRef([
+        new Animated.Value(0.3),
+        new Animated.Value(0.3),
+        new Animated.Value(0.3),
+        new Animated.Value(0.3),
+        new Animated.Value(0.3),
+    ]).current;
 
     React.useEffect(() => {
         if (!playing) {
@@ -175,6 +181,7 @@ const HomeScreen = ({ navigation }) => {
         return (
             <View style={styles.loading}>
                 <ActivityIndicator color="#fff" size="large" />
+                <Text style={{ color: 'rgba(255,255,255,0.4)', marginTop: 20, fontSize: 13, letterSpacing: 1 }}>PREPARING YOUR RHYTHM...</Text>
             </View>
         );
     }

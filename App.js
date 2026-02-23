@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet, Image } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Image, Text } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -27,11 +27,23 @@ const AppContent = () => {
 
   useEffect(() => {
     checkOnboarding();
+
+    // Safety timeout: if we're still stuck in 5 seconds, force proceed to login/app
+    const timer = setTimeout(() => {
+      if (onboardingSeen === null) setOnboardingSeen(false);
+    }, 5000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const checkOnboarding = async () => {
-    const seen = await AsyncStorage.getItem('@onboarding_seen');
-    setOnboardingSeen(seen === 'true');
+    try {
+      const seen = await AsyncStorage.getItem('@onboarding_seen');
+      setOnboardingSeen(seen === 'true');
+    } catch (e) {
+      console.warn('[App] Onboarding check failed, defaulting to false');
+      setOnboardingSeen(false);
+    }
   };
 
   const handleFinishOnboarding = async () => {
@@ -39,19 +51,19 @@ const AppContent = () => {
     setOnboardingSeen(true);
   };
 
-  // ── 1. Still checking session or onboarding status ──
+  // ── 1. User is logged in — skip everything and go to music ──
+  if (user) {
+    return <AppNavigator />;
+  }
+
+  // ── 2. Still checking session or onboarding status ──
   if (loading || onboardingSeen === null) {
     return (
       <View style={styles.loader}>
-        {/* You can add a logo here for a branding-only splash */}
         <ActivityIndicator size="large" color="#7C3AED" />
+        <Text style={{ color: 'rgba(255,255,255,0.4)', marginTop: 20, fontSize: 13, letterSpacing: 1 }}>SYNCHRONIZING...</Text>
       </View>
     );
-  }
-
-  // ── 2. User is logged in — skip everything and go to music ──
-  if (user) {
-    return <AppNavigator />;
   }
 
   // ── 3. User is NOT logged in — show onboarding only if not yet seen ──

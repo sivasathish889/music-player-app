@@ -11,12 +11,10 @@ const hasNativePlayer = !!NativeModules.TrackPlayerModule;
 
 if (Platform.OS !== 'web' && hasNativePlayer) {
     try {
-        const TP = require('react-native-track-player');
-        const TrackPlayer = TP.default || TP;
+        const TrackPlayer = require('react-native-track-player').default || require('react-native-track-player');
 
         if (TrackPlayer && typeof TrackPlayer.registerPlaybackService === 'function') {
-            const { playbackService } = require('./src/services/playbackService');
-            TrackPlayer.registerPlaybackService(() => playbackService);
+            TrackPlayer.registerPlaybackService(() => require('./src/services/playbackService').playbackService);
         }
     } catch (e) {
         console.log('TrackPlayer registration failed:', e.message);

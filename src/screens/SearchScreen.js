@@ -26,7 +26,7 @@ const SearchScreen = ({ navigation }) => {
     const [loading, setLoading] = useState(false);
     const [searched, setSearched] = useState(false);
     const [likedIds, setLikedIds] = useState([]);
-    let searchTimeout = null;
+    const searchTimeout = useRef(null);
 
     const handleSearch = useCallback(async (text) => {
         if (!text.trim()) {
@@ -49,8 +49,8 @@ const SearchScreen = ({ navigation }) => {
 
     const onChangeText = (text) => {
         setQuery(text);
-        if (searchTimeout) clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => handleSearch(text), 400);
+        if (searchTimeout.current) clearTimeout(searchTimeout.current);
+        searchTimeout.current = setTimeout(() => handleSearch(text), 400);
     };
 
     const handleLike = async (song) => {

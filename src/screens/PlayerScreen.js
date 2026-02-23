@@ -12,7 +12,6 @@ import {
     ActivityIndicator,
     StatusBar,
     Modal,
-    BlurView,
     Share,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -92,7 +91,7 @@ const RotatingArtwork = ({ image, playing }) => {
 
     return (
         <View style={artStyles.container}>
-            <Animated.View style={[artStyles.artWrapper, { transform: [{ rotate }] }]}>
+            <Animated.View style={[artStyles.artWrapper, { transform: [{ rotate: rotate }] }]}>
                 {image ? (
                     <Image source={{ uri: image }} style={artStyles.image} />
                 ) : (

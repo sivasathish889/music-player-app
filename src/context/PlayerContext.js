@@ -37,30 +37,28 @@ export const PlayerProvider = ({ children }) => {
 
     const setupPlayer = async () => {
         try {
-            const hasNativePlayer = !!NativeModules.TrackPlayerModule;
+            // Check for native module presence safely
+            const nativeModuleFound = NativeModules.TrackPlayerModule;
 
             // NEVER load Native Track Player on Web or if native modules are missing (Expo Go)
-            if (Platform.OS === 'web' || !hasNativePlayer) {
+            if (Platform.OS === 'web' || !nativeModuleFound) {
                 throw new Error('TrackPlayer native module not available');
             }
 
             // Attempt to load Native Track Player
-            const TP = require('react-native-track-player');
-            const TrackPlayer = TP.default || TP;
+            const TrackPlayer = require('react-native-track-player').default || require('react-native-track-player');
 
-            // Robust check for TrackPlayer and Capability object
-            if (TrackPlayer && TrackPlayer.setupPlayer && TP.Capability) {
+            // Robust check for TrackPlayer
+            if (TrackPlayer && TrackPlayer.setupPlayer) {
                 await TrackPlayer.setupPlayer();
 
-                // Super defensive capability mapping
+                // super defensive capability mapping
+                const TP = require('react-native-track-player');
                 const caps = [];
                 const C = TP.Capability;
                 if (C) {
-                    if (C.Play || C.CAPABILITY_PLAY) caps.push(C.Play || C.CAPABILITY_PLAY);
-                    if (C.Pause || C.CAPABILITY_PAUSE) caps.push(C.Pause || C.CAPABILITY_PAUSE);
-                    if (C.SkipToNext || C.CAPABILITY_SKIP_TO_NEXT) caps.push(C.SkipToNext || C.CAPABILITY_SKIP_TO_NEXT);
-                    if (C.SkipToPrevious || C.CAPABILITY_SKIP_TO_PREVIOUS) caps.push(C.SkipToPrevious || C.CAPABILITY_SKIP_TO_PREVIOUS);
-                    if (C.SeekTo || C.CAPABILITY_SEEK_TO) caps.push(C.SeekTo || C.CAPABILITY_SEEK_TO);
+                    const availableCaps = [C.Play, C.Pause, C.SkipToNext, C.SkipToPrevious, C.SeekTo];
+                    availableCaps.forEach(cap => { if (cap) caps.push(cap); });
                 }
 
                 await TrackPlayer.updateOptions({
@@ -73,18 +71,22 @@ export const PlayerProvider = ({ children }) => {
                 throw new Error('Native module incomplete or not linked');
             }
         } catch (e) {
-            console.log('📦 Player Engine: Expo Go (Foreground Only)');
+            console.log('📦 Player Engine: Expo Go (Foreground Only)', e.message);
             isNativeMode.current = false;
-            // Setup Expo Audio mode
-            const { InterruptionModeIOS, InterruptionModeAndroid } = require('expo-av');
-            await Audio.setAudioModeAsync({
-                staysActiveInBackground: true,
-                playsInSilentModeIOS: true,
-                interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-                shouldDuckAndroid: false,
-                interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
-                playThroughEarpieceAndroid: false,
-            });
+            // Setup Expo Audio mode safely
+            try {
+                const { InterruptionModeIOS, InterruptionModeAndroid } = require('expo-av');
+                await Audio.setAudioModeAsync({
+                    staysActiveInBackground: true,
+                    playsInSilentModeIOS: true,
+                    interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+                    shouldDuckAndroid: false,
+                    interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+                    playThroughEarpieceAndroid: false,
+                });
+            } catch (avErr) {
+                console.warn('Expo AV setup issue:', avErr.message);
+            }
         }
         setIsReady(true);
     };
@@ -164,17 +166,22 @@ export const PlayerProvider = ({ children }) => {
             } else {
                 // EXPO FALLBACK
                 if (expoSoundRef.current) await expoSoundRef.current.unloadAsync();
-                const { sound } = await Audio.Sound.createAsync(
+                const sound = new Audio.Sound();
+                expoSoundRef.current = sound;
+
+                await sound.loadAsync(
                     { uri: song.audioUrl },
-                    { shouldPlay: true, volume, isLooping: isRepeat },
-                    (status) => {
+                    { shouldPlay: true, volume, isLooping: isRepeat }
+                );
+
+                sound.setOnPlaybackStatusUpdate((status) => {
+                    if (status.isLoaded) {
                         setIsPlaying(status.isPlaying);
                         if (status.didJustFinish && !status.isLooping) {
                             playNext();
                         }
                     }
-                );
-                expoSoundRef.current = sound;
+                });
             }
             setIsPlaying(true);
             startTracking();

@@ -3,7 +3,7 @@
 // For iOS simulator use: http://localhost:5000
 // For physical device use your machine's local IP: http://192.168.x.x:5000
 // export const API_BASE_URL = 'http://localhost:5000/api';
-export const API_BASE_URL = 'http://10.107.78.1:5000/api'
+export const API_BASE_URL = 'https://music-player-backends.onrender.com/api'
 export const COLORS = {
     primary: '#7C3AED',      // Purple
     primaryDark: '#5B21B6',

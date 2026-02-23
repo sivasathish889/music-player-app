@@ -32,28 +32,34 @@ export const AuthProvider = ({ children }) => {
                 // Optimistically restore user from cache so UI appears instantly
                 const parsedUser = JSON.parse(storedUser);
                 setUser(parsedUser);
-
-                // Then silently validate token against server (background refresh)
-                try {
-                    const res = await authAPI.getMe();
-                    if (res?.user) {
-                        // Update cached user with latest server data
-                        setUser(res.user);
-                        await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(res.user));
-                    }
-                } catch (serverErr) {
-                    // Token expired or invalid — clear session and force re-login
-                    console.warn('[Auth] Token validation failed:', serverErr.message);
-                    await _clearStorage();
-                    setUser(null);
-                }
             }
         } catch (e) {
             console.error('[Auth] Failed to restore session:', e.message);
             await _clearStorage();
             setUser(null);
         } finally {
+            // Unblock the UI as soon as we've checked the local storage
             setLoading(false);
+        }
+
+        // Silent background validation if token exists
+        try {
+            const tokenFromStorage = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN);
+            if (tokenFromStorage) {
+                const res = await authAPI.getMe();
+                if (res?.user) {
+                    setUser(res.user);
+                    await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(res.user));
+                }
+            }
+        } catch (serverErr) {
+            console.warn('[Auth] Background validation failed:', serverErr.message);
+            // Only force logout if the error is explicitly an authentication failure
+            const errMsg = serverErr.message?.toLowerCase() || '';
+            if (errMsg.includes('401') || errMsg.includes('unauthorized')) {
+                await _clearStorage();
+                setUser(null);
+            }
         }
     };
 
