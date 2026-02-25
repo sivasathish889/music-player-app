@@ -34,6 +34,8 @@ export const authAPI = {
     register: (data) => api.post('/auth/register', data),
     login: (data) => api.post('/auth/login', data),
     getMe: () => api.get('/auth/me'),
+    googleLogin: (idToken) => api.post('/auth/google', { idToken }),
+    appleLogin: (identityToken, email, fullName) => api.post('/auth/apple', { identityToken, email, fullName }),
 };
 
 // Song APIs
