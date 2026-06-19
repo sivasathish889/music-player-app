@@ -31,6 +31,10 @@
     "expo-linear-gradient": "~15.0.8",
     "expo-sharing": "~14.0.8",
     "expo-status-bar": "~3.0.9",
+<<<<<<< HEAD
+=======
+    "expo-system-ui": "~6.0.9",
+>>>>>>> 6eda5a5f3baf0a3aa9ad0c38dcdb8f1845b429a2
     "patch-package": "^8.0.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -40,9 +44,12 @@
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
-    "react-native-track-player": "^4.1.2",
     "react-native-web": "^0.21.2",
     "react-native-worklets": "0.5.1",
+<<<<<<< HEAD
+=======
+    "react-native-worklets-core": "^1.6.3",
+>>>>>>> 6eda5a5f3baf0a3aa9ad0c38dcdb8f1845b429a2
     "shaka-player": "^4.7.9"
   },
   "private": true

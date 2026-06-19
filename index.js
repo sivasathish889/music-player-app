@@ -9,7 +9,7 @@ registerRootComponent(App);
  */
 const hasNativePlayer = !!NativeModules.TrackPlayerModule;
 
-if (Platform.OS !== 'web' && hasNativePlayer) {
+if (false /* Platform.OS !== 'web' && hasNativePlayer */) {
     try {
         const TrackPlayer = require('react-native-track-player').default || require('react-native-track-player');
 

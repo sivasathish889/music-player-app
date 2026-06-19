@@ -45,28 +45,8 @@ export const PlayerProvider = ({ children }) => {
                 throw new Error('TrackPlayer native module not available');
             }
 
-            // Attempt to load Native Track Player
-            const TrackPlayer = require('react-native-track-player').default || require('react-native-track-player');
-
-            // Robust check for TrackPlayer
-            if (TrackPlayer && TrackPlayer.setupPlayer) {
-                await TrackPlayer.setupPlayer();
-
-                // super defensive capability mapping
-                const TP = require('react-native-track-player');
-                const caps = [];
-                const C = TP.Capability;
-                if (C) {
-                    const availableCaps = [C.Play, C.Pause, C.SkipToNext, C.SkipToPrevious, C.SeekTo];
-                    availableCaps.forEach(cap => { if (cap) caps.push(cap); });
-                }
-
-                await TrackPlayer.updateOptions({
-                    capabilities: caps,
-                });
-                trackPlayerRef.current = TrackPlayer;
-                isNativeMode.current = true;
-                console.log('🚀 Player Engine: Native (Notification Bar Enabled)');
+            if (false) {
+                // Removed Track Player completely
             } else {
                 throw new Error('Native module incomplete or not linked');
             }
@@ -145,24 +125,9 @@ export const PlayerProvider = ({ children }) => {
         try {
             if (isNativeMode.current && trackPlayerRef.current) {
                 const TP = trackPlayerRef.current;
-                const tracks = (isShuffle ? shuffleArray(q) : q).map(t => ({
-                    id: String(t._id),
-                    url: t.audioUrl,
-                    title: t.title,
-                    artist: t.artist,
-                    artwork: t.coverImage,
-                }));
-                await TP.reset();
-                await TP.add(tracks);
 
-                // Jump to the correct song in the shuffled/original queue
-                const finalIdx = isShuffle ? tracks.findIndex(t => t.id === String(song._id)) : index;
-                if (finalIdx > 0) await TP.skip(finalIdx);
+                // Track logic skipped because TrackPlayer is removed
 
-                await TP.play();
-                // Sync notification mode for repeat
-                const { RepeatMode } = require('react-native-track-player');
-                await TP.setRepeatMode(isRepeat ? RepeatMode.Track : RepeatMode.Off);
             } else {
                 // EXPO FALLBACK
                 if (expoSoundRef.current) await expoSoundRef.current.unloadAsync();
@@ -223,9 +188,8 @@ export const PlayerProvider = ({ children }) => {
     const toggleRepeat = async () => {
         const newVal = !isRepeat;
         setIsRepeat(newVal);
-        if (isNativeMode.current && trackPlayerRef.current) {
-            const { RepeatMode } = require('react-native-track-player');
-            await trackPlayerRef.current.setRepeatMode(newVal ? RepeatMode.Track : RepeatMode.Off);
+        if (false) { // track player removed
+
         } else if (expoSoundRef.current) {
             await expoSoundRef.current.setIsLoopingAsync(newVal);
         }
