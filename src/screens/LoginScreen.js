@@ -15,6 +15,14 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import * as AppleAuthentication from 'expo-apple-authentication';
+
+// Configure Google Sign in
+GoogleSignin.configure({
+    webClientId: '807694102331-5vj83kn5pcuede7fc5fos9ne9t4rdkf1.apps.googleusercontent.com',
+    iosClientId: '807694102331-n1f3hfo5l4ojuamrd5m9grmagseqqkm5.apps.googleusercontent.com',
+});
 
 const LoginScreen = ({ navigation }) => {
     const [email, setEmail] = useState('');
@@ -22,7 +30,7 @@ const LoginScreen = ({ navigation }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [focusedField, setFocusedField] = useState(null);
-    const { login } = useAuth();
+    const { login, googleLogin, appleLogin } = useAuth();
     const btnScale = useRef(new Animated.Value(1)).current;
 
     const handleLogin = async () => {
@@ -41,6 +49,46 @@ const LoginScreen = ({ navigation }) => {
     };
 
     const animBtn = (toValue) => Animated.spring(btnScale, { toValue, useNativeDriver: true, tension: 200, friction: 10 }).start();
+
+    const handleGoogleLogin = async () => {
+        try {
+            setLoading(true);
+            await GoogleSignin.hasPlayServices();
+            const userInfo = await GoogleSignin.signIn();
+            const { idToken } = userInfo.data || userInfo; // Handle different package versions
+            await googleLogin(idToken);
+        } catch (error) {
+            console.log('Google login error:', error);
+            if (error.code !== 'ASYNC_OP_IN_PROGRESS' && error.code !== 'SIGN_IN_CANCELLED') {
+                Alert.alert('Google Login Failed', error.message || 'Could not sign in with Google');
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAppleLogin = async () => {
+        try {
+            setLoading(true);
+            const credential = await AppleAuthentication.signInAsync({
+                requestedScopes: [
+                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                ],
+            });
+            await appleLogin(
+                credential.identityToken,
+                credential.email,
+                credential.fullName
+            );
+        } catch (e) {
+            if (e.code !== 'ERR_REQUEST_CANCELED') {
+                Alert.alert('Apple Login Failed', e.message || 'Could not sign in with Apple');
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <View style={styles.container}>
@@ -137,15 +185,19 @@ const LoginScreen = ({ navigation }) => {
 
                         {/* Social buttons */}
                         <View style={styles.socialRow}>
-                            <TouchableOpacity style={styles.socialBtn}>
+                            <TouchableOpacity style={styles.socialBtn}
+                                onPress={handleGoogleLogin}
+                                disabled={loading}>
                                 <Ionicons name="logo-google" size={20} color="rgba(255,255,255,0.7)" />
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.socialBtn}>
                                 <Ionicons name="logo-facebook" size={20} color="rgba(255,255,255,0.7)" />
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.socialBtn}>
-                                <Ionicons name="logo-apple" size={20} color="rgba(255,255,255,0.7)" />
-                            </TouchableOpacity>
+                            {Platform.OS === 'ios' && (
+                                <TouchableOpacity style={styles.socialBtn} onPress={handleAppleLogin} disabled={loading}>
+                                    <Ionicons name="logo-apple" size={20} color="rgba(255,255,255,0.7)" />
+                                </TouchableOpacity>
+                            )}
                         </View>
 
                         {/* Register link */}

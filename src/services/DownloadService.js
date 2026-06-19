@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const DOWNLOADS_KEY = '@rhythm_downloads_v2';
@@ -6,6 +6,7 @@ const DOWNLOAD_DIR = FileSystem.documentDirectory + 'rhythm_downloads/';
 
 // ── Ensure the downloads directory exists ───────────────────────
 const ensureDir = async () => {
+    console.log(DOWNLOAD_DIR);
     const info = await FileSystem.getInfoAsync(DOWNLOAD_DIR);
     if (!info.exists) {
         await FileSystem.makeDirectoryAsync(DOWNLOAD_DIR, { intermediates: true });

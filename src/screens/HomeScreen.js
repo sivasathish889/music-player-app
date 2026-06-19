@@ -241,7 +241,7 @@ const HomeScreen = ({ navigation }) => {
                     <View style={{ paddingHorizontal: 20 }}>
                         <Text style={styles.sectionLabel}>{filteredSongs.length} results for "{searchQuery}"</Text>
                         {filteredSongs.map((song) => (
-                            <TouchableOpacity key={song._id} style={styles.searchResult} onPress={() => handlePlaySong(song, filteredSongs)}>
+                            <TouchableOpacity key={song._id} style={styles.Result} onPress={() => handlePlaySong(song, filteredSongs)}>
                                 <View style={styles.searchResultArt}>
                                     {song.coverImage
                                         ? <Image source={{ uri: song.coverImage }} style={{ flex: 1 }} />

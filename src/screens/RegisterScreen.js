@@ -15,7 +15,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import { COLORS, GRADIENTS, FONTS, SPACING, RADIUS } from '../constants';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
+// Configure Google Sign in
+GoogleSignin.configure({
+    webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com', // Replace with your web client ID
+    iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com', // Replace with your iOS client ID
+});
 const RegisterScreen = ({ navigation }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -23,7 +30,7 @@ const RegisterScreen = ({ navigation }) => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const { register } = useAuth();
+    const { register, googleLogin, appleLogin } = useAuth();
     const buttonScale = useRef(new Animated.Value(1)).current;
 
     const handleRegister = async () => {
@@ -52,6 +59,46 @@ const RegisterScreen = ({ navigation }) => {
 
     const animateButton = (toValue) => {
         Animated.spring(buttonScale, { toValue, useNativeDriver: true, tension: 200, friction: 10 }).start();
+    };
+
+    const handleGoogleRegister = async () => {
+        try {
+            setLoading(true);
+            await GoogleSignin.hasPlayServices();
+            const userInfo = await GoogleSignin.signIn();
+            const { idToken } = userInfo.data || userInfo;
+            await googleLogin(idToken);
+        } catch (error) {
+            console.log('Google register error:', error);
+            if (error.code !== 'ASYNC_OP_IN_PROGRESS' && error.code !== 'SIGN_IN_CANCELLED') {
+                Alert.alert('Google Register Failed', error.message || 'Could not register with Google');
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAppleRegister = async () => {
+        try {
+            setLoading(true);
+            const credential = await AppleAuthentication.signInAsync({
+                requestedScopes: [
+                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                ],
+            });
+            await appleLogin(
+                credential.identityToken,
+                credential.email,
+                credential.fullName
+            );
+        } catch (e) {
+            if (e.code !== 'ERR_REQUEST_CANCELED') {
+                Alert.alert('Apple Register Failed', e.message || 'Could not register with Apple');
+            }
+        } finally {
+            setLoading(false);
+        }
     };
 
     const InputField = ({ label, icon, value, onChangeText, placeholder, keyboardType, secureTextEntry, rightIcon, onRightIconPress, autoCapitalize }) => (
@@ -152,6 +199,28 @@ const RegisterScreen = ({ navigation }) => {
                             </TouchableOpacity>
                         </Animated.View>
 
+                        {/* Divider */}
+                        <View style={styles.divider}>
+                            <View style={styles.divLine} />
+                            <Text style={styles.divText}>or</Text>
+                            <View style={styles.divLine} />
+                        </View>
+
+                        {/* Social buttons */}
+                        <View style={styles.socialRow}>
+                            <TouchableOpacity style={styles.socialBtn} onPress={handleGoogleRegister} disabled={loading}>
+                                <Ionicons name="logo-google" size={20} color="rgba(255,255,255,0.7)" />
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.socialBtn}>
+                                <Ionicons name="logo-facebook" size={20} color="rgba(255,255,255,0.7)" />
+                            </TouchableOpacity>
+                            {Platform.OS === 'ios' && (
+                                <TouchableOpacity style={styles.socialBtn} onPress={handleAppleRegister} disabled={loading}>
+                                    <Ionicons name="logo-apple" size={20} color="rgba(255,255,255,0.7)" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
                         <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.loginLink}>
                             <Text style={styles.loginText}>
                                 Already have an account?{' '}
@@ -217,6 +286,20 @@ const styles = StyleSheet.create({
     loginLink: { alignItems: 'center', marginTop: SPACING.lg },
     loginText: { color: COLORS.textSecondary, fontSize: FONTS.sizes.sm },
     loginHighlight: { color: COLORS.accent, fontWeight: '700' },
+    divider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 20 },
+    divLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
+    divText: { color: 'rgba(255,255,255,0.3)', fontSize: 13 },
+    socialRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+    socialBtn: {
+        flex: 1,
+        height: 50,
+        borderRadius: RADIUS.md,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.07)',
+    },
 });
 
 export default RegisterScreen;

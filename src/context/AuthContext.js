@@ -92,6 +92,34 @@ export const AuthProvider = ({ children }) => {
         return res.user;
     };
 
+    // ── Google Login ──────────────────────────────────────────
+    const googleLogin = async (idToken) => {
+        const res = await authAPI.googleLogin(idToken);
+        if (!res.success) throw new Error(res.message || 'Google login failed');
+
+        await AsyncStorage.multiSet([
+            [STORAGE_KEYS.TOKEN, res.token],
+            [STORAGE_KEYS.USER, JSON.stringify(res.user)],
+        ]);
+
+        setUser(res.user);
+        return res.user;
+    };
+
+    // ── Apple Login ───────────────────────────────────────────
+    const appleLogin = async (identityToken, email, fullName) => {
+        const res = await authAPI.appleLogin(identityToken, email, fullName);
+        if (!res.success) throw new Error(res.message || 'Apple login failed');
+
+        await AsyncStorage.multiSet([
+            [STORAGE_KEYS.TOKEN, res.token],
+            [STORAGE_KEYS.USER, JSON.stringify(res.user)],
+        ]);
+
+        setUser(res.user);
+        return res.user;
+    };
+
     // ── Logout ────────────────────────────────────────────────
     const logout = async () => {
         await _clearStorage();
@@ -110,7 +138,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+        <AuthContext.Provider value={{ user, loading, login, googleLogin, appleLogin, register, logout, updateUser }}>
             {children}
         </AuthContext.Provider>
     );
